@@ -9,7 +9,13 @@ def handler(event, context):
     logger.info("Event: {}".format(event))
     logger.info("Context: {}".format(context))
 
-    command = "./awslambdaproxy-lambda -address {}".format(event)
+    address = event['ConnectBackAddress']
+    client_private_key = event['ClientPrivateKey']
+    client_public_key = event['ClientPublicKey']
+    server_public_key = event['ServerPublicKey']
+
+    command = './awslambdaproxy-lambda -address="{}" -client-private-key="{}" -client-public-key="{}" ' \
+              '-server-public-key="{}"'.format(address, client_private_key, client_public_key, server_public_key)
     logger.info("Running: {}".format(command))
     try:
         proc = Popen(command, shell=True, stdout=PIPE, stderr=PIPE)

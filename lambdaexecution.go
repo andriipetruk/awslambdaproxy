@@ -11,11 +11,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+type LambdaPayload struct {
+	ConnectBackAddress string
+	ClientPrivateKey string
+	ClientPublicKey string
+	ServerPublicKey string
+}
+
 type LambdaExecutionManager struct {
 	port string
 	regions []string
 	frequency time.Duration
 	publicIp string
+	serverClientKeypair *ServerClientKeypair
 }
 
 func (l *LambdaExecutionManager) run() {
@@ -25,7 +33,14 @@ func (l *LambdaExecutionManager) run() {
 		sess := session.New(&aws.Config{})
 		for region := range l.regions {
 			svc := lambda.New(sess, &aws.Config{Region: aws.String(l.regions[region])})
-			payload, _ := json.Marshal(l.publicIp + ":" + l.port)
+			lambdaPayload := LambdaPayload{
+				ConnectBackAddress: l.publicIp + ":" + l.port,
+				ClientPrivateKey: l.serverClientKeypair.clientPrivateKey.String(),
+				ClientPublicKey: l.serverClientKeypair.clientPublicKey.String(),
+				ServerPublicKey: l.serverClientKeypair.serverPublicKey.String(),
+			}
+			payload, _ := json.Marshal(lambdaPayload)
+
 			params := &lambda.InvokeInput{
 				FunctionName:   aws.String(lambdaFunctionName),
 				InvocationType: aws.String(lambda.InvocationTypeEvent),
@@ -41,7 +56,7 @@ func (l *LambdaExecutionManager) run() {
 	}
 }
 
-func newLambdaExecutionManager(port string, regions []string, frequency time.Duration) (*LambdaExecutionManager, error) {
+func newLambdaExecutionManager(port string, regions []string, frequency time.Duration, serverClientKeypair *ServerClientKeypair) (*LambdaExecutionManager, error) {
 	publicIp, err := getPublicIp()
 	if err != nil {
 		return nil, errors.Wrap(err, "Error getting IP address")
@@ -51,5 +66,6 @@ func newLambdaExecutionManager(port string, regions []string, frequency time.Dur
 		regions: regions,
 		frequency: frequency,
 		publicIp: publicIp,
+		serverClientKeypair: serverClientKeypair,
 	}, nil
 }

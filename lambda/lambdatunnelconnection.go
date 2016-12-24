@@ -6,12 +6,14 @@ import (
 	"log"
 
 	"github.com/hashicorp/yamux"
+	"github.com/Rudd-O/curvetls"
 )
 
 type LambdaTunnelConnection struct {
 	tunnelHost string
 	conn net.Conn
 	sess *yamux.Session
+	clientServerKeypair *ClientServerKeypair
 }
 
 func (l *LambdaTunnelConnection) setup() {
@@ -21,9 +23,27 @@ func (l *LambdaTunnelConnection) setup() {
 		os.Exit(1)
 	}
 	log.Println("Created tunnel to: " + l.tunnelHost)
-	l.conn = tunnelConn
+	long_nonce, err := curvetls.NewLongNonce()
+	if err != nil {
+		log.Println("Failed to generate nonce: %s", err)
+		return
+	}
+	sconn, err := curvetls.WrapClient(tunnelConn, l.clientServerKeypair.clientPrivateKey,
+			l.clientServerKeypair.clientPublicKey, l.clientServerKeypair.serverPublicKey, long_nonce)
+	if err != nil {
+		if curvetls.IsAuthenticationError(err) {
+			log.Println("Client: server says unauthorized: %s", err)
+			return
+		} else {
+			log.Println("Client: failed to wrap socket: %s", err)
+			return
+		}
+	}
+	log.Println("Created tunnel to: " + l.tunnelHost)
+	l.conn = sconn
 
-	tunnelSession, err := yamux.Server(tunnelConn, nil)
+
+	tunnelSession, err := yamux.Server(l.conn, nil)
 	if err != nil {
 		log.Println("Failed to start session inside tunnel")
 		os.Exit(1)
@@ -32,9 +52,10 @@ func (l *LambdaTunnelConnection) setup() {
 	l.sess = tunnelSession
 }
 
-func setupLambdaTunnelConnection(tunnelHost string) *LambdaTunnelConnection {
+func setupLambdaTunnelConnection(tunnelHost string, clientServerKeypair *ClientServerKeypair) *LambdaTunnelConnection {
 	ltc := &LambdaTunnelConnection{
 		tunnelHost: tunnelHost,
+		clientServerKeypair: clientServerKeypair,
 	}
 	ltc.setup()
 	return ltc

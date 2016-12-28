@@ -7,11 +7,6 @@ import (
 	"github.com/Rudd-O/curvetls"
 )
 
-const (
-	lambdaExecutionFrequency = (time.Second * 10)
-	lambdaExecutionTimeout = int64(15)
-)
-
 type ServerClientKeypair struct {
 	serverPrivateKey curvetls.Privkey
 	serverPublicKey curvetls.Pubkey
@@ -42,7 +37,8 @@ func newServerClientKeypair() *ServerClientKeypair {
 	}
 }
 
-func ServerInit(proxyPort string, tunnelPort string, regions []string) {
+func ServerInit(proxyPort string, tunnelPort string, regions []string, lambdaExecutionFrequency time.Duration) {
+	lambdaExecutionTimeout := int64(lambdaExecutionFrequency.Seconds()) + int64(5)
 	log.Println("Setting up Lambda infrastructure")
 	err := setupLambdaInfrastructure(regions, lambdaExecutionTimeout)
 	if err != nil {

@@ -18,7 +18,7 @@ func ServerInit(proxyPort string, tunnelPort string, regions []string, lambdaExe
 	}
 
 	log.Println("Starting TunnelConnectionManager")
-	tunnelConnectionManager, err := newTunnelConnectionManager(tunnelPort)
+	tunnelConnectionManager, err := newTunnelConnectionManager(tunnelPort, lambdaExecutionFrequency)
 	if err != nil {
 		log.Println("Failed to setup TunnelConnectionManager", err.Error())
 		os.Exit(1)

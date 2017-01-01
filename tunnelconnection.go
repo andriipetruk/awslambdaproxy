@@ -21,6 +21,7 @@ type TunnelConnectionManager struct {
 	currentTunnel string
 	tunnels       map[string]TunnelConnection
 	mutex         sync.RWMutex
+	expectedTunnelSeconds float64
 	emergencyTunnel chan bool
 }
 
@@ -53,8 +54,8 @@ func (t *TunnelConnectionManager) monitorConnectionHealth(connectionId string) {
 	for {
 		_, err := t.tunnels[connectionId].sess.Ping()
 		if err != nil {
-			if time.Since(t.tunnels[connectionId].time).Seconds() < 10 {
-				log.Println("Starting emergency tunnel due to seconds: ", time.Since(t.tunnels[connectionId].time).Seconds())
+			if time.Since(t.tunnels[connectionId].time).Seconds() < t.expectedTunnelSeconds {
+				log.Println("Signaling for emergency tunnel due to tunnel ending early: ", time.Since(t.tunnels[connectionId].time).Seconds())
 				t.emergencyTunnel <- true
 			}
 			t.tunnels[connectionId].sess.Close()
@@ -77,7 +78,7 @@ func (t *TunnelConnectionManager) getActiveSession() (net.Conn, error) {
 			sess, err := tunnel.sess.Open()
 			return sess, err
 		}
-		log.Println("getActiveSession failed..")
+		log.Println("TunnelConnectionManager.getActiveSession failed. Retrying..")
 		time.Sleep(time.Second * 1)
 	}
 }
@@ -101,7 +102,7 @@ func (t *TunnelConnectionManager) isReady() bool {
 	}
 }
 
-func newTunnelConnectionManager(port string) (*TunnelConnectionManager, error) {
+func newTunnelConnectionManager(port string, lambdaExecutionFrequency time.Duration) (*TunnelConnectionManager, error) {
 	listener, err := startTunnelListener(port)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to start TunnelConnectionManager")
@@ -110,6 +111,7 @@ func newTunnelConnectionManager(port string) (*TunnelConnectionManager, error) {
 		listener: listener,
 		tunnels: make(map[string]TunnelConnection),
 		emergencyTunnel: make(chan bool),
+		expectedTunnelSeconds: lambdaExecutionFrequency.Seconds(),
 	}
 	go connectionManager.run()
 	return connectionManager, nil

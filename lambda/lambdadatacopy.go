@@ -10,17 +10,16 @@ import (
 
 type LambdaDataCopyManager struct {
 	lambdaTunnelConnection *LambdaTunnelConnection
-	lambdaProxyServer *LambdaProxyServer
 }
 
 func (l *LambdaDataCopyManager) run() {
 	for {
-		proxySocketConn, proxySocketErr := net.Dial("unix", l.lambdaProxyServer.unixSocket)
+		proxySocketConn, proxySocketErr := net.Dial("unix", proxyUnixSocket)
 		if proxySocketErr != nil {
 			log.Println("Failed to open connection to proxy")
 			os.Exit(1)
 		}
-		log.Println("Started connection to proxy on socket " + l.lambdaProxyServer.unixSocket)
+		log.Println("Started connection to proxy on socket " + proxyUnixSocket)
 
 		tunnelStream, tunnelErr := l.lambdaTunnelConnection.sess.Accept()
 		if tunnelErr != nil {
@@ -33,10 +32,9 @@ func (l *LambdaDataCopyManager) run() {
 	}
 }
 
-func newLambdaDataCopyManager(p *LambdaProxyServer, t *LambdaTunnelConnection) *LambdaDataCopyManager {
+func newLambdaDataCopyManager(t *LambdaTunnelConnection) *LambdaDataCopyManager {
 	return &LambdaDataCopyManager{
 		lambdaTunnelConnection: t,
-		lambdaProxyServer: p,
 	}
 }
 

@@ -12,13 +12,13 @@ const (
 
 func LambdaInit(tunnelHost string) {
 	log.Println("Starting LambdaProxyServer")
-	lambdaProxyServer := startLambdaProxyServer()
+	startLambdaProxyServer()
 
 	log.Println("Establishing tunnel connection to", tunnelHost)
 	lambdaTunnelConnection := setupLambdaTunnelConnection(tunnelHost)
 
 	log.Println("Starting LambdaDataCopyManager")
-	dataCopyManager := newLambdaDataCopyManager(lambdaProxyServer, lambdaTunnelConnection)
+	dataCopyManager := newLambdaDataCopyManager(lambdaTunnelConnection)
 	dataCopyManager.run()
 }
 
